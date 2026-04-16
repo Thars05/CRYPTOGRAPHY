@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Miller-Rabin Primality Test</title>
+    <style>
+        body { font-family: system-ui, sans-serif; display: grid; place-items: center; min-height: 100vh; background: #f8fafc; margin: 0; }
+        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        h2 { text-align: center; color: #1e40af; margin-top: 0; }
+        .field { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.4rem; font-weight: 600; }
+        input { width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; padding: 0.8rem; background: #1e40af; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        button:hover { background: #1e3a8a; }
+        #result { margin-top: 1.5rem; padding: 1rem; border-radius: 6px; text-align: center; font-weight: bold; min-height: 1.2rem; }
+        .is-prime { background: #dcfce7; color: #166534; }
+        .is-composite { background: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Primality Tester</h2>
+    <div class="field">
+        <label for="nInput">Number (n):</label>
+        <input type="text" id="nInput" placeholder="Enter a large integer">
+    </div>
+    <div class="field">
+        <label for="kInput">Accuracy (k):</label>
+        <input type="number" id="kInput" value="5" min="1">
+    </div>
+    <button onclick="runPrimalityTest()">Check Primality</button>
+    <div id="result"></div>
+</div>
+
+<script>
+    /**
+     * Modular Exponentiation: (base^exp) % mod
+     * Uses BigInt for precision with large numbers.
+     */
+    function power(base, exp, mod) {
+        let res = 1n;
+        base = base % mod;
+        while (exp > 0n) {
+            if (exp % 2n === 1n) res = (res * base) % mod;
+            base = (base * base) % mod;
+            exp = exp / 2n;
+        }
+        return res;
+    }
+
+    /**
+     * Single round of the Miller-Rabin test.
+     */
+    function millerTest(d, n) {
+        // Pick a random witness 'a' in range [2, n-2]
+        const randomRange = n - 4n;
+        // Simple random BigInt generation
+        const a = 2n + BigInt(Math.floor(Math.random() * 1000000)) % randomRange;
+
+        let x = power(a, d, n);
+        if (x === 1n || x === n - 1n) return true;
+
+        while (d !== n - 1n) {
+            x = (x * x) % n;
+            d *= 2n;
+            if (x === 1n) return false;
+            if (x === n - 1n) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Checks if n is probably prime using k iterations.
+     */
+    function isPrime(n, k) {
+        if (n <= 1n || n === 4n) return false;
+        if (n <= 3n) return true;
+        if (n % 2n === 0n) return false;
+
+        let d = n - 1n;
+        while (d % 2n === 0n) d /= 2n;
+
+        for (let i = 0; i < k; i++) {
+            if (!millerTest(d, n)) return false;
+        }
+        return true;
+    }
+
+    function runPrimalityTest() {
+        const nStr = document.getElementById('nInput').value.trim();
+        const kValue = parseInt(document.getElementById('kInput').value);
+        const display = document.getElementById('result');
+
+        try {
+            const n = BigInt(nStr);
+            const startTime = performance.now();
+            const result = isPrime(n, kValue);
+            const endTime = performance.now();
+
+            display.className = result ? "is-prime" : "is-composite";
+            display.innerText = result ?
+                `PROBABLY PRIME (checked in ${(endTime - startTime).toFixed(2)}ms)` :
+                "DEFINITELY COMPOSITE";
+        } catch (e) {
+            display.className = "is-composite";
+            display.innerText = "Error: Please enter a valid integer.";
+        }
+    }
+</script>
+
+</body>
+</html>
+

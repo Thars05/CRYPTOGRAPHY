@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cryptography Algorithms</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .page { display: none; }
+        a { color: blue; cursor: pointer; text-decoration: underline; }
+        input, textarea { margin: 5px 0; width: 300px; }
+        button { margin: 5px; }
+        table, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+            padding: 8px;
+            text-align: center;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="home" class="page" style="display:block;">
+    <h1>Cryptography Techniques</h1>
+    <ul>
+        <li><a onclick="showPage('shift')">Shift Cipher</a></li>
+        <li><a onclick="showPage('hill')">Hill Cipher</a></li>
+    </ul>
+</div>
+
+<div id="shift" class="page">
+    <h2>Shift Cipher</h2>
+    <input id="shiftText" placeholder="Text"><br>
+    <input type="number" id="shiftKey" placeholder="Key"><br>
+    <button onclick="shiftEncrypt()">Encrypt</button>
+    <button onclick="shiftDecrypt()">Decrypt</button>
+    <p id="shiftResult"></p>
+    <a onclick="showPage('home')">Back</a>
+</div>
+
+<div id="hill" class="page">
+    <h2>Hill Cipher</h2>
+
+    <input type="number" id="hillSize" placeholder="Matrix Size (n)"><br>
+    <textarea id="hillKey" placeholder="Enter key matrix values row-wise"></textarea><br>
+    <input id="hillText" placeholder="Text"><br>
+
+    <button onclick="hillEncrypt()">Encrypt</button>
+    <button onclick="hillDecrypt()">Decrypt</button>
+
+    <p id="hillResult"></p>
+    <a onclick="showPage('home')">Back</a>
+</div>
+
+<script>
+function showPage(p){
+    document.querySelectorAll(".page").forEach(x=>x.style.display="none");
+    document.getElementById(p).style.display="block";
+}
+
+/* ========= SHIFT ========= */
+function shiftEncrypt(){ shift(1); }
+function shiftDecrypt(){ shift(-1); }
+
+function shift(dir){
+    let t = shiftText.value.toUpperCase();
+    let k = parseInt(shiftKey.value);
+    if(isNaN(k)){ alert("Enter key"); return; }
+    k = ((k%26)+26)%26;
+    let r="";
+    for(let c of t){
+        if(c>='A'&&c<='Z')
+            r+=String.fromCharCode((c.charCodeAt(0)-65+dir*k+26)%26+65);
+        else r+=c;
+    }
+    shiftResult.innerText=r;
+}
+
+/* ========= HILL ========= */
+function parseHillMatrix(n){
+    let arr = hillKey.value.trim().split(/\s+/).map(Number);
+    if(arr.length !== n*n){ alert("Need "+(n*n)+" values"); return null; }
+    let m=[];
+    for(let i=0;i<n;i++) m.push(arr.slice(i*n,(i+1)*n));
+    return m;
+}
+
+function hillEncrypt(){ hill(false); }
+function hillDecrypt(){ hill(true); }
+
+function hill(decrypt){
+    let n = parseInt(hillSize.value);
+    if(isNaN(n)||n<2){ alert("Invalid size"); return; }
+
+    let key = parseHillMatrix(n);
+    if(!key) return;
+
+    if(decrypt){
+        key = inverseMatrixMod26(key);
+        if(!key) return;
+    }
+
+    let text = hillText.value.toUpperCase().replace(/[^A-Z]/g,"");
+    while(text.length % n !== 0) text+="X";
+
+    let res="";
+    for(let i=0;i<text.length;i+=n){
+        let vec=[...text.substr(i,n)].map(c=>c.charCodeAt(0)-65);
+        for(let r=0;r<n;r++){
+            let sum=0;
+            for(let c=0;c<n;c++) sum+=key[r][c]*vec[c];
+            res+=String.fromCharCode((sum%26+26)%26+65);
+        }
+    }
+    hillResult.innerText=res;
+}
+
+/* ===== GENERAL n×n INVERSE LOGIC ===== */
+function determinant(m){
+    let n=m.length;
+    if(n===1) return m[0][0];
+    if(n===2) return m[0][0]*m[1][1]-m[0][1]*m[1][0];
+    let det=0;
+    for(let c=0;c<n;c++){
+        det+=(c%2===0?1:-1)*m[0][c]*determinant(minor(m,0,c));
+    }
+    return det;
+}
+
+function minor(m,r,c){
+    return m.filter((_,i)=>i!==r).map(row=>row.filter((_,j)=>j!==c));
+}
+
+function adjugate(m){
+    let n=m.length;
+    let adj=Array.from({length:n},()=>Array(n).fill(0));
+    for(let i=0;i<n;i++){
+        for(let j=0;j<n;j++){
+            let sign=((i+j)%2===0)?1:-1;
+            adj[j][i]=sign*determinant(minor(m,i,j));
+        }
+    }
+    return adj;
+}
+
+function modInverse(a,m){
+    a=((a%m)+m)%m;
+    for(let i=1;i<m;i++) if((a*i)%m===1) return i;
+    return null;
+}
+
+function inverseMatrixMod26(m){
+    let det=determinant(m);
+    det=((det%26)+26)%26;
+    let invDet=modInverse(det,26);
+    if(invDet===null){
+        alert("Key matrix not invertible modulo 26");
+        return null;
+    }
+    let adj=adjugate(m);
+    let n=m.length;
+    let inv=Array.from({length:n},()=>Array(n).fill(0));
+    for(let i=0;i<n;i++){
+        for(let j=0;j<n;j++){
+            inv[i][j]=((adj[i][j]*invDet)%26+26)%26;
+        }
+    }
+    return inv;
+}
+
+</script>
+
+</body>
+</html>
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cryptography Algorithms</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .page { display: none; }
+        a { color: blue; cursor: pointer; text-decoration: underline; }
+        input, textarea { margin: 5px 0; width: 300px; }
+        button { margin: 5px; }
+        table, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+            padding: 8px;
+            text-align: center;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="home" class="page" style="display:block;">
+    <h1>Cryptography Techniques</h1>
+    <ul>
+
+        <li><a onclick="showPage('playfair')">Playfair Cipher</a></li>
+    </ul>
+</div>
+
+
+
+<div id="playfair" class="page">
+    <h2>Playfair Cipher</h2>
+
+    <input id="playfairText" placeholder="Plaintext"><br>
+    <input id="playfairKey" placeholder="Key"><br>
+
+    <button onclick="playfairEncrypt()">Encrypt</button>
+
+
+    <h3>5×5 Key Matrix</h3>
+    <div id="matrixTable"></div>
+
+    <p id="playfairResult"></p>
+    <a onclick="showPage('home')">Back</a>
+</div>
+
+<script>
+function showPage(p){
+    document.querySelectorAll(".page").forEach(x=>x.style.display="none");
+    document.getElementById(p).style.display="block";
+}
+
+
+
+/* ========= CORRECTED PLAYFAIR ========= */
+function buildPlayfairMatrix(key){
+    key = key.toUpperCase().replace(/J/g,"I").replace(/[^A-Z]/g,"");
+    let used = new Set();
+    let seq = key + "ABCDEFGHIKLMNOPQRSTUVWXYZ";
+    let mat = [];
+    for(let c of seq){
+        if(!used.has(c)){
+            used.add(c); mat.push(c);
+        }
+    }
+    return mat;
+}
+
+function drawMatrix(mat){
+    let html = "<table>";
+    for(let i=0; i<5; i++){
+        html += "<tr>";
+        for(let j=0; j<5; j++) html += "<td>" + mat[i*5+j] + "</td>";
+        html += "</tr>";
+    }
+    html += "</table>";
+    matrixTable.innerHTML = html;
+}
+
+function playfairEncrypt() {
+    let rawText = playfairText.value.toUpperCase().replace(/J/g,"I").replace(/[^A-Z]/g,"");
+    let key = playfairKey.value;
+    if(!key){ alert("Enter key"); return; }
+
+    // 1. PREPROCESS TEXT: Handle double letters (e.g., BALLOON -> BALXLOON)
+    let preparedText = "";
+    for (let i = 0; i < rawText.length; i++) {
+        preparedText += rawText[i];
+        if (i + 1 < rawText.length) {
+            if (rawText[i] === rawText[i + 1]) {
+                preparedText += "X"; // Insert filler if next char is identical
+            } else {
+                preparedText += rawText[i + 1];
+                i++; // Skip paired char
+            }
+        }
+    }
+    // Add trailing X if length is odd
+    if (preparedText.length % 2 !== 0) preparedText += "X";
+
+    // 2. BUILD MATRIX
+    let mat = buildPlayfairMatrix(key);
+    drawMatrix(mat);
+
+    // 3. ENCRYPT DIGRAPHS
+    let res = "";
+    for(let i=0; i < preparedText.length; i += 2){
+        let a = mat.indexOf(preparedText[i]);
+        let b = mat.indexOf(preparedText[i+1]);
+        let r1 = Math.floor(a/5), c1 = a%5;
+        let r2 = Math.floor(b/5), c2 = b%5;
+
+        if(r1 === r2){ // Same Row: Move Right
+            res += mat[r1 * 5 + (c1 + 1) % 5];
+            res += mat[r2 * 5 + (c2 + 1) % 5];
+        }
+        else if(c1 === c2){ // Same Column: Move Down
+            res += mat[((r1 + 1) % 5) * 5 + c1];
+            res += mat[((r2 + 1) % 5) * 5 + c2];
+        }
+        else { // Rectangle: Swap Columns
+            res += mat[r1 * 5 + c2];
+            res += mat[r2 * 5 + c1];
+        }
+    }
+    playfairResult.innerText = res;
+}
+
+
+</script>
+
+</body>
+</html>
